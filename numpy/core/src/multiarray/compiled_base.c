@@ -77,6 +77,17 @@ minmax(const npy_intp *data, npy_intp data_len, npy_intp *mn, npy_intp *mx)
 }
 
 /*
+ * arr_histogram is registered as histogram.
+ *
+ */
+NPY_NO_EXPORT PyObject *
+arr_histogram(PyObject *NPY_UNUSED(self), PyObject *args, PyObject *kwds)
+{
+    printf("HELLO WORLD arr_histogram");
+}
+
+
+/*
  * arr_bincount is registered as bincount.
  *
  * bincount accepts one, two or three arguments. The first is an array of

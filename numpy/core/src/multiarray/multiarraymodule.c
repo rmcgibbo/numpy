@@ -4017,6 +4017,8 @@ static struct PyMethodDef array_module_methods[] = {
         "indicated by mask."},
     {"bincount", (PyCFunction)arr_bincount,
         METH_VARARGS | METH_KEYWORDS, NULL},
+    {"histogram", (PyCFunction)arr_histogram,
+        METH_VARARGS | METH_KEYWORDS, NULL},
     {"digitize", (PyCFunction)arr_digitize,
         METH_VARARGS | METH_KEYWORDS, NULL},
     {"interp", (PyCFunction)arr_interp,

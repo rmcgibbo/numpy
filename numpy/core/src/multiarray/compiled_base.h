@@ -5,6 +5,8 @@
 NPY_NO_EXPORT PyObject *
 arr_insert(PyObject *, PyObject *, PyObject *);
 NPY_NO_EXPORT PyObject *
+arr_histogram(PyObject *, PyObject *, PyObject *);
+NPY_NO_EXPORT PyObject *
 arr_bincount(PyObject *, PyObject *, PyObject *);
 NPY_NO_EXPORT PyObject *
 arr_digitize(PyObject *, PyObject *, PyObject *kwds);
