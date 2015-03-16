@@ -1003,6 +1003,12 @@ class test_histogram_1(TestCase):
         n = 10
         v = rand(n)
         (a, b) = histogram(v, bins=object(), weights=rand(n))
+    def test_3(self):
+        n = 10
+        v = rand(n)
+        print('python: max,min', np.max(v), np.min(v))
+        (a, b) = histogram(v, bins=10)
+
 
 class TestHistogram(TestCase):
     def setUp(self):

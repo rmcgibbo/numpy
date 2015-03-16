@@ -77,6 +77,27 @@ minmax(const npy_intp *data, npy_intp data_len, npy_intp *mn, npy_intp *mx)
 }
 
 /*
+ * Find the minimum and maximum of a double array.
+ */
+static void
+minmaxd(const double *data, npy_intp data_len, double *mn, double *mx)
+{
+    double min = *data;
+    double max = *data;
+    while (--data_len) {
+        const double val = *(++data);
+        if (val < min) {
+            min = val;
+        }
+        else if (val > max) {
+            max = val;
+        }
+    }
+    *mn = min;
+    *mx = max;
+}
+
+/*
  * Check whether or not an object can be iterated over.
  */
 static int iterable(PyObject* obj) {
@@ -103,11 +124,11 @@ arr_histogram(PyObject *NPY_UNUSED(self), PyObject *args, PyObject *kwds)
     PyObject *o_a=NULL, *o_bins=PyLong_FromLong(10), *o_range=Py_None;
     PyObject *o_normed=Py_False, *o_weights=Py_None, *o_density=Py_None;
 
-    PyObject *mn, *mx;
     npy_intp *a_dims, *weights_dims;
     PyArrayObject *arr_a=NULL, *arr_weights=NULL, *arrf_a=NULL, *arrf_weights=NULL;
-    PyArrayObject *seq_range=NULL;
+    PyObject *seq_range=NULL;
     long l_bins;
+    double mn, mx;
 
     int i, len_range, is_scalar;
     static char *kwlist[] = {"a", "bins", "range", "normed", "weights", "density", NULL};
@@ -149,11 +170,21 @@ arr_histogram(PyObject *NPY_UNUSED(self), PyObject *args, PyObject *kwds)
             PyErr_SetString(PyExc_ValueError, "too many values to unpack (expected 2)");
             goto fail;
         }
-        mn = PySequence_Fast_GET_ITEM(seq_range, 0);
-        mx = PySequence_Fast_GET_ITEM(seq_range, 1);
+
+        mn = PyFloat_AsDouble(PySequence_GetItem(seq_range, 0));
+        if (PyErr_Occurred() == NULL) {
+            PyErr_SetString(PyExc_AttributeError, "min must be convertable to float in range parameter.");
+            goto fail;
+        }
+        mx = PyFloat_AsDouble(PySequence_GetItem(seq_range, 1));
+        if (PyErr_Occurred() == NULL) {
+            PyErr_SetString(PyExc_AttributeError, "min must be convertable to float in range parameter.");
+            goto fail;
+        }
+
         Py_DECREF(seq_range);
 
-        if (PyObject_RichCompareBool(mn, mx, Py_GT)) {
+        if (mn > mx) {
             PyErr_SetString(PyExc_AttributeError, "max must be larger than min in range parameter.");
             goto fail;
         }
@@ -164,14 +195,32 @@ arr_histogram(PyObject *NPY_UNUSED(self), PyObject *args, PyObject *kwds)
         l_bins = PyLong_AsLong(o_bins);
         is_scalar = (PyErr_Occurred() == NULL);
         PyErr_Clear();
-        if (is_scalar || l_bins < 1) {
+        if (is_scalar && l_bins < 1) {
             PyErr_SetString(PyExc_ValueError, "`bins` should be a positive integer.");
             goto fail;
         }
 
+        if (o_range == Py_None) {
+            if (PyArray_SIZE(arrf_a) == 0) {
+                // handle empty arrays. Can't determine range, so use 0-1.
+                mn = 0.0;
+                mx = 1.0;
+            } else {
+                minmaxd(PyArray_DATA(arrf_a), PyArray_SIZE(arrf_a), &mn, &mx);
+                printf("min: %f\n", mn);
+                printf("max: %f\n", mx);
+            }
+        }
+
+        if (mn == mx) {
+            mn -= 0.5;
+            mx += 0.5;
+        }
+
+        // bins = linspace(mn, mx, bins + 1, endpoint=True)
     }
 
-
+    return Py_None;
     fail:
         Py_XDECREF(o_bins);
         Py_XDECREF(arr_a);
