@@ -994,6 +994,16 @@ class TestSinc(TestCase):
         assert_array_equal(y1, y3)
 
 
+class test_histogram_1(TestCase):
+    def test_1(self):
+        n = 10
+        v = rand(n)
+        (a, b) = histogram(v, bins='a', weights=rand(n))
+    def test_2(self):
+        n = 10
+        v = rand(n)
+        (a, b) = histogram(v, bins=object(), weights=rand(n))
+
 class TestHistogram(TestCase):
     def setUp(self):
         pass

@@ -77,13 +77,108 @@ minmax(const npy_intp *data, npy_intp data_len, npy_intp *mn, npy_intp *mx)
 }
 
 /*
+ * Check whether or not an object can be iterated over.
+ */
+static int iterable(PyObject* obj) {
+    int is_iterable;
+    PyObject* iter = NULL;
+
+    PyErr_Clear();
+    iter = PyObject_GetIter(obj);
+    is_iterable = (PyErr_Occurred() == NULL);
+    PyErr_Clear();
+    Py_XDECREF(iter);
+
+    return is_iterable;
+}
+
+/*
  * arr_histogram is registered as histogram.
  *
+ * np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
  */
 NPY_NO_EXPORT PyObject *
 arr_histogram(PyObject *NPY_UNUSED(self), PyObject *args, PyObject *kwds)
 {
-    printf("HELLO WORLD arr_histogram");
+    PyObject *o_a=NULL, *o_bins=PyLong_FromLong(10), *o_range=Py_None;
+    PyObject *o_normed=Py_False, *o_weights=Py_None, *o_density=Py_None;
+
+    PyObject *mn, *mx;
+    npy_intp *a_dims, *weights_dims;
+    PyArrayObject *arr_a=NULL, *arr_weights=NULL, *arrf_a=NULL, *arrf_weights=NULL;
+    PyArrayObject *seq_range=NULL;
+    long l_bins;
+
+    int i, len_range, is_scalar;
+    static char *kwlist[] = {"a", "bins", "range", "normed", "weights", "density", NULL};
+
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|OOOOO",
+                kwlist, &o_a, &o_bins, &o_range, &o_normed, &o_weights, &o_density)) {
+            goto fail;
+    }
+    arr_a = (PyArrayObject *)PyArray_FROMANY(o_a, NPY_DOUBLE, 0, NPY_MAXDIMS, NPY_ARRAY_CARRAY_RO);
+
+    if (o_weights != Py_None) {
+        arr_weights = (PyArrayObject *)PyArray_FROMANY(o_weights, NPY_DOUBLE, 0, NPY_MAXDIMS, NPY_ARRAY_CARRAY_RO);
+
+        /*
+         * Check the shape of weights vs. the shape of a.
+         */
+        if (PyArray_NDIM(arr_a) != PyArray_NDIM(arr_weights)) {
+            PyErr_SetString(PyExc_TypeError, "weights should have the same shape as a.");
+            goto fail;
+        }
+
+        a_dims = PyArray_DIMS(arr_a);
+        weights_dims = PyArray_DIMS(arr_weights);
+        for (i = 0; i < PyArray_NDIM(arr_a); i++) {
+            if (a_dims[i] != weights_dims[i]) {
+                PyErr_SetString(PyExc_TypeError, "weights should have the same shape as a.");
+                goto fail;
+            }
+        }
+        arrf_weights = PyArray_Ravel(arr_weights, NPY_CORDER);
+    }
+    arrf_a = PyArray_Ravel(arr_a, NPY_CORDER);
+
+    if (o_range != Py_None) {
+        seq_range = PySequence_Fast(o_range, "expected a sequence");
+        len_range = PySequence_Size(seq_range);
+        if (len_range != 2) {
+            PyErr_SetString(PyExc_ValueError, "too many values to unpack (expected 2)");
+            goto fail;
+        }
+        mn = PySequence_Fast_GET_ITEM(seq_range, 0);
+        mx = PySequence_Fast_GET_ITEM(seq_range, 1);
+        Py_DECREF(seq_range);
+
+        if (PyObject_RichCompareBool(mn, mx, Py_GT)) {
+            PyErr_SetString(PyExc_AttributeError, "max must be larger than min in range parameter.");
+            goto fail;
+        }
+    }
+
+    if (!iterable(o_bins)) {
+        PyErr_Clear();
+        l_bins = PyLong_AsLong(o_bins);
+        is_scalar = (PyErr_Occurred() == NULL);
+        PyErr_Clear();
+        if (is_scalar || l_bins < 1) {
+            PyErr_SetString(PyExc_ValueError, "`bins` should be a positive integer.");
+            goto fail;
+        }
+
+    }
+
+
+    fail:
+        Py_XDECREF(o_bins);
+        Py_XDECREF(arr_a);
+        Py_XDECREF(arr_weights);
+        Py_XDECREF(arrf_weights);
+        Py_XDECREF(arrf_a);
+        return NULL;
 }
 
 
